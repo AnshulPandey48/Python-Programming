@@ -3,7 +3,6 @@ s = "cbacdcbc"
 Counter = Counter(s)
 seen = set()
 stack = []
-
 for ch in s:
     Counter[ch] -=1
     if ch in seen:
@@ -11,7 +10,6 @@ for ch in s:
     while stack and ch < stack[-1] and Counter[stack[-1]] > 0:
         removed = stack.pop()
         seen.remove(removed)
-    
     stack.append(ch)
     seen.add(ch)
 print(stack)
