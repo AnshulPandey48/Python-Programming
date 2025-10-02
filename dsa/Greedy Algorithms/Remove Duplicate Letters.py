@@ -1,4 +1,4 @@
-s = "bcabc"
+s = "cbacdcbc"
 #op -> "abc"
 r = ""
 d1 = {}
