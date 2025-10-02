@@ -8,4 +8,6 @@ for ch in s:
     d1[ch] = True
 print(d1)
 
-r = d1.keys()
+r = list(d1.keys())
+result = ''.join(map(str,r))
+print(result)
