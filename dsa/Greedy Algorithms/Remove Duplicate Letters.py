@@ -4,6 +4,7 @@ d1 = {}
 prev = ""
 next = ""
 for ch in s:
+    
     if ch in d1 and (ch > prev or ch < prev):
         del d1[ch]
     d1[ch] = True
