@@ -1,5 +1,4 @@
 s = "cbacdcbc"
-#op -> "abc"
 r = ""
 d1 = {}
 prev = ""
