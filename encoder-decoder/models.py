@@ -10,4 +10,7 @@ class Encoder(nn.Module):
         embedded = self.embedding(src)
         output,(hidden,cell) = self.lstm(embedded)
         return hidden , cell
-class 
+class Decoder(nn.Module):
+    def __init__(self,output_dim,emb_dim,hid_dim,n_layers,dropout):
+        super().__init__()
+        
