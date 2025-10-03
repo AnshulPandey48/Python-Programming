@@ -8,4 +8,5 @@ class Encoder(nn.Module):
         self.lstm = nn.LSTM(emb_dim,hidden_dim,n_layers,dropout=dropout,batch_first=True)
     def forward(self,src):
         embedded = self.embedding(src)
-        output,(hidden,cell) = 
+        output,(hidden,cell) = self.lstm(embedded)
+        return hidden , cell
