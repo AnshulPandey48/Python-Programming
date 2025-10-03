@@ -10,3 +10,4 @@ class Encoder(nn.Module):
         embedded = self.embedding(src)
         output,(hidden,cell) = self.lstm(embedded)
         return hidden , cell
+class 
