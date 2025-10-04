@@ -13,4 +13,5 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self,output_dim,emb_dim,hid_dim,n_layers,dropout):
         super().__init__()
-        
+
+    
