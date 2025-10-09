@@ -1,5 +1,5 @@
-deadline = [2, 1, 2, 1, 1]
-profit = [100, 19, 27, 25, 15]
+deadline = [3,1,2,2]
+profit = [50,15,,20,3]
 res = []
 count = 0
 total_profit = 0
