@@ -1,5 +1,5 @@
-prices = [3, 2, 1, 4]
-k = 2
+prices = [3, 2, 1, 4,5]
+k = 4
 prices.sort()
 # 1 , 2 , 3 , 4
 res = []
@@ -11,14 +11,13 @@ while i < j:
     i+=1
 res.append(sum)
 
-i, j = 0 , len(prices)
-
+i, j = 0 , len(prices) -1
 sum2 = 0
-while i < j:
+while i <= j:
     sum2 += prices[j]
     j-=1
     i += k
 
 res.append(sum2)
 
-prices(res)
+print(res)
