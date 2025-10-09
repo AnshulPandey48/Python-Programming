@@ -11,6 +11,7 @@ while n > 0:
         count+=1
         i+=1
         origi += arr[i]
+        #a
     else:
         print (count)
     n -=1
