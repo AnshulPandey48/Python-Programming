@@ -10,7 +10,6 @@ while i < j:
     j -= k
     i+=1
 res.append(sum1)
-
 i, j = 0 , len(prices) -1
 sum2 = 0
 while i <= j:
