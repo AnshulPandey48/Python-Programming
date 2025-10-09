@@ -4,12 +4,12 @@ prices.sort()
 # 1 , 2 , 3 , 4
 res = []
 i,j = 0 , len(prices)
-sum = 0
+sum1 = 0
 while i < j:
-    sum += prices[i]
+    sum1 += prices[i]
     j -= k
     i+=1
-res.append(sum)
+res.append(sum1)
 
 i, j = 0 , len(prices) -1
 sum2 = 0
