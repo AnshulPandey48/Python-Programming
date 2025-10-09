@@ -4,3 +4,21 @@ prices.sort()
 # 1 , 2 , 3 , 4
 res = []
 i,j = 0 , len(prices)
+sum = 0
+while i < j:
+    sum += prices[i]
+    j -= k
+    i+=1
+res.append(sum)
+
+i, j = 0 , len(prices)
+
+sum2 = 0
+while i < j:
+    sum2 += prices[j]
+    j-=1
+    i += k
+
+res.append(sum2)
+
+prices(res)
