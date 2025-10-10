@@ -17,10 +17,14 @@ while i != len(deadline_profit):
         count +=1
         sum1 += deadline_profit[i][2]
     else:
-        index_place -=1
-        slots[index_place] = deadline_profit[i][2]
-        sum1 += deadline_profit[i][2]
-        count +=1
+        temp_index = index_place -1
+        while temp_index > 0:
+            if slots[temp_index] is None:
+                slots[temp_index] = deadline_profit[i][2]
+                count +=1
+                sum1 += deadline_profit[i][2]
+                break
+            temp_index -=1
     i+=1
 print(count)
 print(sum1)
