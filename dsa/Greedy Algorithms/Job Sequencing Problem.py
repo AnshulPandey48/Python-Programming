@@ -1,31 +1,24 @@
-deadline = [3,1,2,2]
-profit = [50,15,20,30]
-deadline_profit = [(i,d,p) for i , (d,p) in enumerate(zip(deadline,profit))]
-deadline_profit.sort(reverse= True,key = lambda x : x[2])
-count = 0
-sum1 = 0
-max_index = max(deadline)
-slots = [None]*(max_index+1) # index 0 ... max_index
-index_place = 0
-i = 0
-while i != len(deadline_profit):
-    if count == max_index:
-        break
-    index_place = deadline_profit[i][1]
-    if slots[index_place] is None:
-        slots[index_place] = deadline_profit[i][2]
-        count +=1
-        sum1 += deadline_profit[i][2]
-    else:
-        temp_index = index_place -1
-        while temp_index > 0:
-            if slots[temp_index] is None:
-                slots[temp_index] = deadline_profit[i][2]
-                count +=1
-                sum1 += deadline_profit[i][2]
-                break
-            temp_index -=1
-    i+=1
-print(count)
-print(sum1)
+class Solution:
+    def jobSequencing(self, deadline, profit):
+        jobs = [(d, p) for d, p in zip(deadline, profit)]
+        jobs.sort(key=lambda x: x[1], reverse=True)  # sort by profit descending
 
+        max_deadline = max(deadline)
+        parent = [i for i in range(max_deadline + 1)]  # Union-Find array
+
+        def find(slot):
+            if parent[slot] != slot:
+                parent[slot] = find(parent[slot])
+            return parent[slot]
+
+        count = 0
+        total_profit = 0
+
+        for d, p in jobs:
+            available = find(d)  # find latest free slot
+            if available > 0:
+                total_profit += p
+                count += 1
+                parent[available] = available - 1  # mark slot as filled
+
+        return [count, total_profit]
