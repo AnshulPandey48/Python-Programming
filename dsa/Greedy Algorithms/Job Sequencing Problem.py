@@ -9,6 +9,8 @@ slots = [None]*(max_index+1) # index 0 ... max_index
 index_place = 0
 i = 0
 while i != len(deadline_profit):
+    if count == max_index:
+        break
     index_place = deadline_profit[i][1]
     if slots[index_place] is None:
         slots[index_place] = deadline_profit[i][2]
