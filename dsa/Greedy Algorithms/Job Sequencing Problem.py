@@ -1,10 +1,2 @@
-"""
-Sort jobs in decreasing order of profit
-For each job:
-    For slot = min(total slots, job.deadline) downto 1:
-        If slot is empty:
-            Assign job to slot
-            Add job.profit to total profit
-            Break
-
-"""
+arr = [4, 1, 1, 1]
+profit = [20, 10, 40, 30]
