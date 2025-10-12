@@ -1,15 +1,48 @@
 """
-renderer.py — ModernGL+PyQt5 QOpenGLWidget, camera, model mesh, textures, lighting, glow.
+renderer.py — ModernGL+PyQt5 QOpenGLWidget draws colored spheres per planet, radius scaled, no textures.
 """
 import moderngl
 import numpy as np
 from pyrr import Matrix44, Vector3
-from PIL import Image
 import os
 from PyQt5.QtWidgets import QOpenGLWidget
 from PyQt5.QtCore import Qt
 
 AU = 1.495978707e11
+
+# Solar system canonical radii in meters (approx):
+planetradii = {
+    'sun':     6.957e8,
+    'mercury': 2.44e6,
+    'venus':   6.05e6,
+    'earth':   6.378e6,
+    'mars':    3.39e6,
+    'jupiter': 6.99e7,
+    'saturn':  5.82e7,
+    'uranus':  2.54e7,
+    'neptune': 2.46e7,
+}
+
+planetcolors = {
+    'sun':     (1.0, 0.85, 0.15),  # yellow-white
+    'mercury': (0.7, 0.7, 0.7),    # gray
+    'venus':   (1.0, 0.9, 0.7),    # pale yellow
+    'earth':   (0.2, 0.3, 1.0),    # blue
+    'mars':    (1.0, 0.3, 0.1),    # orange/red
+    'jupiter': (0.95, 0.8, 0.7),   # beige
+    'saturn':  (0.98, 0.9, 0.6),   # light beige
+    'uranus':  (0.5, 0.95, 1.0),   # cyan
+    'neptune': (0.3, 0.3, 1.0),    # blue
+}
+
+def planet_color(name):
+    return planetcolors.get(name.lower(), (1.0, 1.0, 1.0))
+
+def planet_radius(name):
+    r = planetradii.get(name.lower(), 3.0e6)
+    # Scale up for OpenGL visibility but preserve ratios; multiply by a factor (e.g., 100)
+    factor = 1e4
+    return r * factor
 
 class GLWidget(QOpenGLWidget):
     def __init__(self, bodies, parent=None):
@@ -17,11 +50,9 @@ class GLWidget(QOpenGLWidget):
         self.bodies = bodies
         self.width = 1280
         self.height = 800
-        self.ctx = None  # ModernGL context
+        self.ctx = None
         self.prog = None
-        self.planet_mesh = None
-        self.textures = {}
-        self.light_pos = Vector3([0,0,0])
+        self.sphere_mesh = None
         self.camera_pos = Vector3([0.0, 0.0, 10*AU])
         self.camera_front = Vector3([0.0, 0.0, -1.0])
         self.camera_up = Vector3([0.0, 1.0, 0.0])
@@ -32,9 +63,7 @@ class GLWidget(QOpenGLWidget):
     def initializeGL(self):
         self.ctx = moderngl.create_context()
         self._setup_shaders()
-        self.prog['AU'].value = AU
-        self.planet_mesh = self._load_sphere_mesh()
-        self._load_textures()
+        self.sphere_mesh = self._load_sphere_mesh()
         self.ctx.enable(moderngl.DEPTH_TEST)
 
     def resizeGL(self, w, h):
@@ -45,55 +74,42 @@ class GLWidget(QOpenGLWidget):
     def paintGL(self):
         self.ctx.clear(0.01, 0.01, 0.01)
         for body in self.bodies:
-            model = Matrix44.from_translation(body.position)
+            model = Matrix44.from_scale([planet_radius(body.name)]*3) @ Matrix44.from_translation(body.position)
             self.prog['model'].write(model.astype('f4').tobytes())
             self.prog['view'].write(self.view_matrix.astype('f4').tobytes())
             self.prog['proj'].write(self.proj_matrix.astype('f4').tobytes())
-            self.prog['light_pos'].value = tuple(self.light_pos)
-            self.prog['AU'].value = AU
-            name = body.name.lower()
-            tex = self.textures.get(name, None)
-            if tex:
-                tex.use()
-            self.planet_mesh.render()
+            self.prog['color'].value = planet_color(body.name)
+            self.sphere_mesh.render()
 
     def _setup_shaders(self):
         vertex_src = """
         #version 330
         in vec3 in_position;
         in vec3 in_normal;
-        in vec2 in_texcoord;
         uniform mat4 model;
         uniform mat4 view;
         uniform mat4 proj;
-        uniform float AU;
-        out vec3 frag_normal;
-        out vec3 frag_pos;
-        out vec2 frag_texcoord;
+        out vec3 v_normal;
+        out vec3 v_pos;
         void main() {
-            frag_normal = mat3(model) * in_normal;
-            frag_pos = vec3(model * vec4(in_position, 1.0));
-            frag_texcoord = in_texcoord;
+            v_normal = mat3(model) * in_normal;
+            v_pos = vec3(model * vec4(in_position, 1.0));
             gl_Position = proj * view * model * vec4(in_position, 1.0);
         }
         """
         fragment_src = """
         #version 330
-        uniform sampler2D tex;
-        uniform vec3 light_pos;
-        uniform float AU;
-        in vec3 frag_normal;
-        in vec3 frag_pos;
-        in vec2 frag_texcoord;
+        uniform vec3 color;
+        in vec3 v_normal;
+        in vec3 v_pos;
         out vec4 frag_color;
         void main() {
-            vec3 normal = normalize(frag_normal);
-            vec3 lightdir = normalize(light_pos - frag_pos);
-            float diff = max(dot(normal, lightdir), 0.0);
-            float spec = pow(max(dot(reflect(-lightdir, normal), normalize(-frag_pos)), 0.0), 32.0);
-            float glow = max(0.0, 1.0 - length(frag_pos)/AU);
-            vec3 texcolor = texture(tex, frag_texcoord).rgb;
-            frag_color = vec4((0.2 + 0.7*diff)*texcolor + 0.3*spec*vec3(1.0,1.0,0.8) + glow*vec3(1.0,0.8,0.5), 1.0);
+            vec3 norm = normalize(v_normal);
+            vec3 lightdir = normalize(-v_pos); // sun at origin emits outward
+            float diff = max(dot(norm, lightdir), 0.0);
+            float spec = pow(max(dot(reflect(-lightdir, norm), normalize(-v_pos)), 0.0), 24.0);
+            vec3 c = (0.2 + 0.8*diff)*color + 0.2*spec*vec3(1,1,0.85);
+            frag_color = vec4(c, 1.0);
         }
         """
         self.prog = self.ctx.program(vertex_shader=vertex_src, fragment_shader=fragment_src)
@@ -109,9 +125,7 @@ class GLWidget(QOpenGLWidget):
                 x = np.sin(theta) * np.cos(phi)
                 y = np.cos(theta)
                 z = np.sin(theta) * np.sin(phi)
-                u = j / lon
-                v = i / lat
-                vertices.extend([x, y, z, x, y, z, u, v])
+                vertices.extend([x, y, z, x, y, z])
         vertices = np.array(vertices, dtype=np.float32)
         indices = []
         for i in range(lat):
@@ -122,20 +136,10 @@ class GLWidget(QOpenGLWidget):
         vbo = self.ctx.buffer(vertices.tobytes())
         ibo = self.ctx.buffer(indices.tobytes())
         vao = self.ctx.vertex_array(self.prog,
-            [(vbo, "3f 3f 2f", "in_position", "in_normal", "in_texcoord")],
+            [(vbo, "3f 3f", "in_position", "in_normal")],
             index_buffer=ibo)
         return vao
 
-    def _load_textures(self):
-        asset_dir = os.path.join(os.path.dirname(__file__), "assets")
-        for fname in os.listdir(asset_dir):
-            if fname.lower().endswith((".jpg",".png")):
-                img = Image.open(os.path.join(asset_dir, fname)).convert("RGB").resize((2048,2048))
-                tex = self.ctx.texture(img.size, 3, img.tobytes())
-                tex.build_mipmaps()
-                key = fname.split(".")[0].lower()
-                self.textures[key] = tex
-
     def set_focus(self, position):
-        self.camera_pos = Vector3(position + np.array([0,0,10*AU]))
-        self.view_matrix = Matrix44.look_at(self.camera_pos, Vector3(position), self.camera_up)
+        self.camera_pos = Vector3([0.0, 0.0, 3*AU])  # Only 3 AU out, not 10
+        self.camera_front = Vector3([0.0, 0.0, -1.0])

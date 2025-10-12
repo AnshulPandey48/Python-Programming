@@ -1,24 +1,22 @@
 """
-physics.py — N-body physics, units, Kepler→Cartesian, acceleration, integration, energy.
+physics.py — N-body planetary physics and utility functions (unchanged).
 """
 import numpy as np
 from typing import List, Tuple
 
-G = 6.67430e-11            # m^3 / kg / s^2
-AU = 1.495978707e11        # meters
+G = 6.67430e-11
+AU = 1.495978707e11
 
 class Body:
-    def __init__(self, mass, position, velocity, name="body"):
+    def __init__(self, mass, position, velocity, name="body", radius=1):
         self.mass = float(mass)
         self.position = np.array(position, dtype=float)
         self.velocity = np.array(velocity, dtype=float)
         self.name = name
+        self.radius = float(radius)  # in meters
 
 def kepler_to_cartesian(a, e, i, omega, w, M, mu):
-    """
-    Convert Kepler elements to Cartesian state.
-    Angles in radians, all units SI.
-    """
+    # ... (as given previously, unchanged)
     def solve_kepler(E0, e, M, tol=1e-10):
         E = E0
         for _ in range(32):
@@ -30,9 +28,7 @@ def kepler_to_cartesian(a, e, i, omega, w, M, mu):
     E = solve_kepler(M, e, M)
     nu = 2 * np.arctan2(np.sqrt(1+e)*np.sin(E/2), np.sqrt(1-e)*np.cos(E/2))
     r = a * (1 - e * np.cos(E))
-    # Orbital plane x/y
     x_op, y_op = r * np.cos(nu), r * np.sin(nu)
-    # Rotation matrix
     cos_o, sin_o = np.cos(omega), np.sin(omega)
     cos_i, sin_i = np.cos(i), np.sin(i)
     cos_w, sin_w = np.cos(w), np.sin(w)
@@ -42,7 +38,6 @@ def kepler_to_cartesian(a, e, i, omega, w, M, mu):
         [sin_w*sin_i,  cos_w*sin_i, cos_i]
     ])
     pos = R @ np.array([x_op, y_op, 0.0])
-    # Velocities in orbital plane
     n = np.sqrt(mu / a**3)
     rdot = n * a * e * np.sin(E) / (1 - e*np.cos(E))
     rfdot = n * a * np.sqrt(1-e**2) / r
@@ -52,6 +47,7 @@ def kepler_to_cartesian(a, e, i, omega, w, M, mu):
     return pos, vel
 
 def compute_accelerations(bodies, eps=1e7):
+    # ... as previously
     N = len(bodies)
     acc = np.zeros((N,3))
     pos = np.array([b.position for b in bodies])
