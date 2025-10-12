@@ -1,35 +1,63 @@
 """
-renderer.py — OpenGL scene, planetary models, camera, lighting, trail, UI controls
-Uses moderngl, pyrr for math, Pillow for textures
+renderer.py — ModernGL+PyQt5 QOpenGLWidget, camera, model mesh, textures, lighting, glow.
 """
 import moderngl
 import numpy as np
 from pyrr import Matrix44, Vector3
 from PIL import Image
 import os
+from PyQt5.QtWidgets import QOpenGLWidget
+from PyQt5.QtCore import Qt
 
-class Renderer:
-    
-    def __init__(self, width=1280, height=800):
-        # Initialize ModernGL context
-        self.ctx = moderngl.create_standalone_context()
-        self.width = width
-        self.height = height
-        self._setup_shaders()
+AU = 1.495978707e11
+
+class GLWidget(QOpenGLWidget):
+    def __init__(self, bodies, parent=None):
+        super().__init__(parent)
+        self.bodies = bodies
+        self.width = 1280
+        self.height = 800
+        self.ctx = None  # ModernGL context
+        self.prog = None
+        self.planet_mesh = None
+        self.textures = {}
+        self.light_pos = Vector3([0,0,0])
         self.camera_pos = Vector3([0.0, 0.0, 10*AU])
         self.camera_front = Vector3([0.0, 0.0, -1.0])
         self.camera_up = Vector3([0.0, 1.0, 0.0])
         self.view_matrix = Matrix44.look_at(self.camera_pos, self.camera_pos + self.camera_front, self.camera_up)
-        self.proj_matrix = Matrix44.perspective_projection(60.0, width/height, 0.1*AU, 100*AU)
+        self.proj_matrix = Matrix44.perspective_projection(60.0, self.width/self.height, 0.1*AU, 100*AU)
+        self.setFocusPolicy(Qt.ClickFocus)
+
+    def initializeGL(self):
+        self.ctx = moderngl.create_context()
+        self._setup_shaders()
+        self.prog['AU'].value = AU
         self.planet_mesh = self._load_sphere_mesh()
-        self.textures = {}
-        self.trails = []
         self._load_textures()
-        self._init_buffers()
-        self.light_pos = Vector3([0, 0, 0])  # Sun at origin
+        self.ctx.enable(moderngl.DEPTH_TEST)
+
+    def resizeGL(self, w, h):
+        self.width = w
+        self.height = h
+        self.proj_matrix = Matrix44.perspective_projection(60.0, w/max(h,1), 0.1*AU, 100*AU)
+
+    def paintGL(self):
+        self.ctx.clear(0.01, 0.01, 0.01)
+        for body in self.bodies:
+            model = Matrix44.from_translation(body.position)
+            self.prog['model'].write(model.astype('f4').tobytes())
+            self.prog['view'].write(self.view_matrix.astype('f4').tobytes())
+            self.prog['proj'].write(self.proj_matrix.astype('f4').tobytes())
+            self.prog['light_pos'].value = tuple(self.light_pos)
+            self.prog['AU'].value = AU
+            name = body.name.lower()
+            tex = self.textures.get(name, None)
+            if tex:
+                tex.use()
+            self.planet_mesh.render()
 
     def _setup_shaders(self):
-        # Simple vertex/fragment shader (Phong Illumination)
         vertex_src = """
         #version 330
         in vec3 in_position;
@@ -38,8 +66,7 @@ class Renderer:
         uniform mat4 model;
         uniform mat4 view;
         uniform mat4 proj;
-        uniform float AU; // Declare AU used for scaling
-
+        uniform float AU;
         out vec3 frag_normal;
         out vec3 frag_pos;
         out vec2 frag_texcoord;
@@ -54,6 +81,7 @@ class Renderer:
         #version 330
         uniform sampler2D tex;
         uniform vec3 light_pos;
+        uniform float AU;
         in vec3 frag_normal;
         in vec3 frag_pos;
         in vec2 frag_texcoord;
@@ -69,9 +97,8 @@ class Renderer:
         }
         """
         self.prog = self.ctx.program(vertex_shader=vertex_src, fragment_shader=fragment_src)
-    
+
     def _load_sphere_mesh(self, subdivisions=48):
-        # Procedural sphere mesh (vertex pos, normals, texcoords)
         lat = subdivisions
         lon = 2*subdivisions
         vertices = []
@@ -86,7 +113,6 @@ class Renderer:
                 v = i / lat
                 vertices.extend([x, y, z, x, y, z, u, v])
         vertices = np.array(vertices, dtype=np.float32)
-        # Indices
         indices = []
         for i in range(lat):
             for j in range(lon):
@@ -103,50 +129,13 @@ class Renderer:
     def _load_textures(self):
         asset_dir = os.path.join(os.path.dirname(__file__), "assets")
         for fname in os.listdir(asset_dir):
-            if fname.endswith(".jpg") or fname.endswith(".png"):
-                path = os.path.join(asset_dir, fname)
-                img = Image.open(path)
-                img = img.resize((2048,2048)).convert('RGB')
+            if fname.lower().endswith((".jpg",".png")):
+                img = Image.open(os.path.join(asset_dir, fname)).convert("RGB").resize((2048,2048))
                 tex = self.ctx.texture(img.size, 3, img.tobytes())
                 tex.build_mipmaps()
-                self.textures[fname.split(".")[0]] = tex
+                key = fname.split(".")[0].lower()
+                self.textures[key] = tex
 
-    def _init_buffers(self):
-        self.trail_buffer = []  # List of trails per planet, add positions
-
-    def render_planets(self, bodies: list):
-        self.ctx.clear(0.01, 0.01, 0.01)
-        for body in bodies:
-            model = Matrix44.from_translation(body.position)
-            self.prog['model'].write(model.astype('f4').tobytes())
-            self.prog['view'].write(self.view_matrix.astype('f4').tobytes())
-            self.prog['proj'].write(self.proj_matrix.astype('f4').tobytes())
-            self.prog['light_pos'].value = tuple(self.light_pos)
-            tex = self.textures.get(body.name.lower(), None)
-            if tex:
-                tex.use()
-            self.planet_mesh.render()
-            # Update and draw trail (simplified)
-            trail = self._update_trail(body)
-            self._render_trail(trail)
-
-    def _update_trail(self, body):
-        # Store last N positions
-        trail_len = 500
-        if not hasattr(body, 'trail'): body.trail = []
-        body.trail.append(body.position.copy())
-        if len(body.trail) > trail_len:
-            body.trail = body.trail[-trail_len:]
-        return np.array(body.trail)
-
-    def _render_trail(self, trail):
-        # Render trail as a polyline (override for OpenGL line calls)
-        pass  # Implement with glLine if needed; skipped for brevity
-
-    def handle_camera_drag(self, dx, dy):
-        # Map 2D mouse drag to camera translation along view direction
-        # dx, dy: pixel deltas
-        move_speed = 0.1 * AU * (abs(dy)/50)
-        self.camera_pos += self.camera_front * move_speed * np.sign(dy)
-        self.view_matrix = Matrix44.look_at(self.camera_pos, self.camera_pos + self.camera_front, self.camera_up)
-
+    def set_focus(self, position):
+        self.camera_pos = Vector3(position + np.array([0,0,10*AU]))
+        self.view_matrix = Matrix44.look_at(self.camera_pos, Vector3(position), self.camera_up)
