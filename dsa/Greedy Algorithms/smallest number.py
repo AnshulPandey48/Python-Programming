@@ -10,4 +10,4 @@ else:
     i = d-1
     s -=1
     while i >=0 and s > 0:
-        
+        add = min(sd[i])
