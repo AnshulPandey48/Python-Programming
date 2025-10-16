@@ -10,4 +10,9 @@ else:
     i = d-1
     s -=1
     while i >=0 and s > 0:
-        add = min(sd[i])
+        add = min(9-sd[i],s)
+        i-=1
+        sd[i] += add
+        s -= add
+    res = ''.join(map(str,sd))
+print(res)
