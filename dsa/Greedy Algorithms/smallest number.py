@@ -1,6 +1,6 @@
 s = 9
 d = 2
-if (s == 0 and d > 1) or s > 9 * d:
+if (s == 0 and d > 1) or s > 9 * d: # edge case 
     print(-1)
     exit()
 else:
@@ -15,4 +15,5 @@ else:
         sd[i] += add
         s-= add
         i -=1 
+print(sd)
 print("Smallest number: ",''.join (map(str,sd)))
