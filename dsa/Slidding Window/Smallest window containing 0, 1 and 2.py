@@ -3,4 +3,5 @@ def smallestsubstring(s):
 
     #frequency array
     freq = [0]*3
-    
+    while k < n:
+        freq[int(s[k])]
