@@ -1,7 +1,8 @@
 def smallestsubstring(s):
-    n , i , j , k , cnt , min_len = len(s), 0 , 0 , 0 , 0 , float("inf")
-
-    #frequency array
-    freq = [0]*3
-    while k < n:
-        freq[int(s[k])]
+    left = 0
+    count = {'0':0,'1':0,'2':0}
+    min_len = float('inf')
+    for right in range(len(s)):
+        count(s[right])+=1
+    while count['0'] > 0 and count['1'] > 0 and count['2'] > 0:
+        
