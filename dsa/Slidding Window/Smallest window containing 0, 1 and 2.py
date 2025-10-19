@@ -1,16 +1,6 @@
-s = "10212"
-count = 0
-freq = {} # dict is curly
+def smallestsubstring(s):
+    n , i , j , k , cnt , min_len = len(s), 0 , 0 , 0 , 0 , float("inf")
 
-for char in s:
-    if len(freq) == 3:
-        print(freq)
-        exit()
-        
-    elif char in freq:
-        freq[char]+=1
-    else:
-        freq[char] = 1
-
-print(freq)
-print(len(freq))
+    #frequency array
+    freq = [0]*3
+    
